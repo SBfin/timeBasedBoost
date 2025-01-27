@@ -46,4 +46,34 @@ contract FlexStaker is Ownable {
         
         emit Withdraw(msg.sender, token, amount, blocksStaked);
     }
+
+    /// @notice Returns the balance and blocks staked for a specific token
+    /// @param user The address of the user
+    /// @param token The token address to check
+    /// @return balance The amount of tokens the user has staked
+    /// @return blocksStaked The number of blocks since the user's last deposit
+    function getUserStakeInfo(address user, address token) external view returns (uint256 balance, uint256 blocksStaked) {
+        balance = userBalances[user][token];
+        uint256 depositBlock = userDepositBlocks[user][token];
+        blocksStaked = depositBlock == 0 ? 0 : block.number - depositBlock;
+        return (balance, blocksStaked);
+    }
+
+    /// @notice Returns the balance of a specific token for a user
+    /// @param user The address of the user
+    /// @param token The token address to check
+    /// @return The amount of tokens the user has staked
+    function balanceOf(address user, address token) external view returns (uint256) {
+        return userBalances[user][token];
+    }
+
+    /// @notice Returns how many blocks a user has staked a specific token
+    /// @param user The address of the user
+    /// @param token The token address to check
+    /// @return The number of blocks since the user's last deposit
+    function getBlocksStaked(address user, address token) external view returns (uint256) {
+        uint256 depositBlock = userDepositBlocks[user][token];
+        if (depositBlock == 0) return 0;
+        return block.number - depositBlock;
+    }
 }
