@@ -24,6 +24,7 @@ contract FlexStaker is Ownable {
 
     constructor() Ownable(msg.sender) {}
 
+    // TODO: Handle multiple deposits of the same token
     function deposit(address token, uint256 amount) external {
         if (amount == 0) revert ZeroAmount();
         if (!IERC20(token).transferFrom(msg.sender, address(this), amount)) revert TransferFailed();

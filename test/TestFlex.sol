@@ -3,7 +3,9 @@ pragma solidity ^0.8.26;
 
 import {FlexStaker} from "../src/FlexStaker.sol";
 import {ERC20} from "@openzeppelin-contracts/token/ERC20/ERC20.sol";
-import {Test} from "forge-std/Test.sol";
+import {Test, Vm} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
+
 // Create a mock ERC20 with minting capabilities
 contract MockERC20 is ERC20 {
     constructor() ERC20("Test", "TEST") {}
@@ -60,7 +62,20 @@ contract TestFlex is Test {
         assertEq(token.balanceOf(address(flexStaker)), 100, "FlexStaker should have received 100 tokens");
         
         // Now we can withdraw
+        vm.recordLogs();
         flexStaker.withdraw(address(token), 100);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        // First log is Transfer
+        assertEq(entries[0].topics[0], 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef);
+
+        // Second log is Withdraw
+        assertEq(entries[1].topics[0], 0xf341246adaac6f497bc2a656f546ab9e182111d630394f0c57c710a59a2cb567);
+
+        /*
+        for (uint i = 0; i < entries.length; i++) {
+            console.log("Event topic 0:", entries[i].topics[0]);
+            console.log("Event data:", entries[i].data);
+        }*/
         
         // Check balances after withdrawal
         assertEq(token.balanceOf(address(this)), 1000, "User should have received tokens back");
@@ -79,5 +94,32 @@ contract TestFlex is Test {
         // Assert balance
         assertEq(balance, 100, "Balance should be 100");
         assertEq(blocksStaked, 0, "Blocks staked should be greater than 0");
+    }
+
+    function testGasDeposit() public {
+        // Setup
+        token.mint(address(this), 1000);
+        token.approve(address(flexStaker), 100);
+        
+        // Measure gas for deposit
+        uint256 startGas = gasleft();
+        flexStaker.deposit(address(token), 100);
+        uint256 gasUsed = startGas - gasleft();
+        
+        console.log("Gas used for deposit:", gasUsed);
+    }
+
+    function testGasWithdraw() public {
+        // Setup
+        token.mint(address(this), 1000);
+        token.approve(address(flexStaker), 100);
+        flexStaker.deposit(address(token), 100);
+        
+        // Measure gas for withdraw
+        uint256 startGas = gasleft();
+        flexStaker.withdraw(address(token), 100);
+        uint256 gasUsed = startGas - gasleft();
+        
+        console.log("Gas used for withdraw:", gasUsed);
     }
 }
