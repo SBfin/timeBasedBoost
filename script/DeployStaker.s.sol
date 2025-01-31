@@ -9,7 +9,7 @@ contract Deploy is Script {
 
     function run() public {
         vm.startBroadcast();
-        flexStaker = new FlexStaker();
+        flexStaker = new FlexStaker(1, 1000);
         console.log("FlexStaker deployed at:", address(flexStaker));
         vm.stopBroadcast();
     }

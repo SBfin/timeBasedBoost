@@ -21,7 +21,7 @@ contract TestFlex is Test {
     MockERC20 public token; // Change type to MockERC20 to access mint function
     
     constructor() {
-        flexStaker = new FlexStaker();
+        flexStaker = new FlexStaker(1, 1000);
         token = new MockERC20();
     }
 
@@ -56,6 +56,9 @@ contract TestFlex is Test {
         
         // Deposit
         flexStaker.deposit(address(token), 100);
+
+        // Wait for some blocks
+        vm.roll(block.number + flexStaker.MINIMUM_LOCK_PERIOD() + 1);
         
         // Check balances after deposit
         assertEq(token.balanceOf(address(this)), 900, "User balance should decrease by 100");
@@ -69,7 +72,7 @@ contract TestFlex is Test {
         assertEq(entries[0].topics[0], 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef);
 
         // Second log is Withdraw
-        assertEq(entries[1].topics[0], 0xf341246adaac6f497bc2a656f546ab9e182111d630394f0c57c710a59a2cb567);
+        assertEq(entries[1].topics[0], 0x25993effddf3b74ffcc0e68e5440be3fba18b532cdf14462257fb11e7c22fb95);
 
         /*
         for (uint i = 0; i < entries.length; i++) {
@@ -114,6 +117,9 @@ contract TestFlex is Test {
         token.mint(address(this), 1000);
         token.approve(address(flexStaker), 100);
         flexStaker.deposit(address(token), 100);
+
+        // Wait for some blocks
+        vm.roll(block.number + flexStaker.MINIMUM_LOCK_PERIOD() + 1);
         
         // Measure gas for withdraw
         uint256 startGas = gasleft();
@@ -122,4 +128,5 @@ contract TestFlex is Test {
         
         console.log("Gas used for withdraw:", gasUsed);
     }
+
 }

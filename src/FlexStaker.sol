@@ -8,24 +8,39 @@ import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
 // Rewards are managed by boost protocol
 // FlexStaker just receives tokens from the users and emits events and calls the boost protocol
 // Works for more than one tokens
+// TODO: Add boost ID to the events
 
 contract FlexStaker is Ownable {
     // Add mapping to track deposit block numbers
     mapping(address => mapping(address => uint256)) public userDepositBlocks;
     mapping(address => mapping(address => uint256)) public userBalances;
+
+    // Blocks to wait before withdraw. About 30 mins.
+    uint256 public MINIMUM_LOCK_PERIOD = 5;
     
+    uint256 public id;
+    uint256 public blockDuration;
+    uint256 public startBlock;
+    uint256 public endBlock;
+
     error ZeroAmount();
     error NotEnoughBalance(address token, uint256 amount);
     error TransferFailed();
+    error NotEnoughBlocksStaked(uint256 blocksStaked);
 
     event Deposit(address indexed user, address indexed token, uint256 amount);
     // Update Withdraw event to include blocks staked
-    event Withdraw(address indexed user, address indexed token, uint256 amount, uint256 blocksStaked);
+    event Withdraw(address indexed user, uint256 id, address indexed token, uint256 amount, uint256 blocksStaked, uint256 amountPerBlock);
 
-    constructor() Ownable(msg.sender) {}
+    constructor(uint256 _id, uint256 _blockDuration) Ownable(msg.sender) {
+        id = _id;
+        blockDuration = _blockDuration;
+        startBlock = block.number;
+        endBlock = startBlock + blockDuration;
+    }
 
     // TODO: Handle multiple deposits of the same token
-    function deposit(address token, uint256 amount) external {
+    function deposit(address token, uint256 amount) external isWithinBoostPeriod {
         if (amount == 0) revert ZeroAmount();
         if (!IERC20(token).transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
         
@@ -41,11 +56,13 @@ contract FlexStaker is Ownable {
         if (userBalances[msg.sender][token] < amount) revert NotEnoughBalance(token, amount);
         
         uint256 blocksStaked = block.number - userDepositBlocks[msg.sender][token];
-        
+        if (blocksStaked < MINIMUM_LOCK_PERIOD) revert NotEnoughBlocksStaked(blocksStaked);
         userBalances[msg.sender][token] -= amount;
         if (!IERC20(token).transfer(msg.sender, amount)) revert TransferFailed();
+
+        uint256 amountPerBlock = amount * blocksStaked;
         
-        emit Withdraw(msg.sender, token, amount, blocksStaked);
+        emit Withdraw(msg.sender, id, token, amount, blocksStaked, amountPerBlock);
     }
 
     /// @notice Returns the balance and blocks staked for a specific token
@@ -76,5 +93,27 @@ contract FlexStaker is Ownable {
         uint256 depositBlock = userDepositBlocks[user][token];
         if (depositBlock == 0) return 0;
         return block.number - depositBlock;
+    }
+
+    function getId() external view returns (uint256) {
+        return id;
+    }
+
+    function getStartBlock() external view returns (uint256) {
+        return startBlock;
+    }
+
+    function getEndBlock() external view returns (uint256) {
+        return endBlock;
+    }
+
+    function getBlockDuration() external view returns (uint256) {
+        return blockDuration;
+    }
+
+    // modifier to check if the block is within the boost period
+    modifier isWithinBoostPeriod() {
+        require(block.number >= startBlock && block.number <= endBlock, "Not within boost period");
+        _;
     }
 }
